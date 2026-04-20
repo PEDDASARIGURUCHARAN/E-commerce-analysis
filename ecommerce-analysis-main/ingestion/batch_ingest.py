@@ -27,7 +27,7 @@ def reject_invalid_rows(df, required_cols, run_date_str):
         return df, pd.DataFrame()
         
     mask = df[required_cols].notnull().all(axis=1)
-    valid_df = df[mask]
+    valid_df = df[mask].copy()
     rejected_df = df[~mask]
     
     if not rejected_df.empty:
