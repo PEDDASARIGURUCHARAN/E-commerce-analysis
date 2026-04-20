@@ -2,7 +2,7 @@ import duckdb
 import os
 import pandas as pd
 
-DB_PATH = os.getenv('DB_PATH', 'data/ecommerce.db')
+WAREHOUSE_PATH = os.getenv('WAREHOUSE_PATH', os.getenv('DB_PATH', 'data/warehouse.duckdb'))
 DEMO_DATA_DIR = 'data/demo'
 
 os.makedirs(DEMO_DATA_DIR, exist_ok=True)
@@ -10,7 +10,7 @@ os.makedirs(DEMO_DATA_DIR, exist_ok=True)
 print("Exporting mart tables to Parquet for Demo Mode...")
 
 try:
-    conn = duckdb.connect(DB_PATH, read_only=True)
+    conn = duckdb.connect(WAREHOUSE_PATH, read_only=True)
     
     # Export Sales Dashboard
     sales_df = conn.execute("SELECT * FROM main.mart_sales_dashboard").df()

@@ -11,7 +11,7 @@ st.sidebar.header("Configuration")
 env_demo = os.getenv("DEMO_MODE", "false").lower() == "true"
 demo_mode = st.sidebar.checkbox("🚀 Enable Demo Mode (Offline)", value=env_demo, help="Bypass Kafka/DuckDB and read precomputed data from Parquet files")
 
-db_path = os.getenv('DB_PATH', 'data/ecommerce.db')
+warehouse_path = os.getenv('WAREHOUSE_PATH', os.getenv('DB_PATH', 'data/warehouse.duckdb'))
 dl_path = os.getenv('DEAD_LETTER_PATH', 'data/dead_letter')
 demo_path = os.getenv('DEMO_DATA_PATH', 'data/demo')
 
@@ -23,7 +23,7 @@ def load_data(query_or_file, is_demo=False):
             return pd.DataFrame()
         return pd.read_parquet(query_or_file)
     else:
-        conn = duckdb.connect(db_path, read_only=True)
+        conn = duckdb.connect(warehouse_path, read_only=True)
         df = conn.execute(query_or_file).df()
         conn.close()
         return df

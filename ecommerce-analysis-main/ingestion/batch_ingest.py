@@ -12,7 +12,8 @@ load_dotenv()
 db_path = os.getenv('DB_PATH', 'data/ecommerce.db')
 raw_data_path = os.getenv('RAW_DATA_PATH', 'data/raw')
 dead_letter_path = os.getenv('DEAD_LETTER_PATH', 'data/dead_letter')
-api_url = f"http://localhost:{os.getenv('MOCK_API_PORT', '8001')}"
+mock_api_host = os.getenv('MOCK_API_HOST', 'localhost')
+api_url = f"http://{mock_api_host}:{os.getenv('MOCK_API_PORT', '8001')}"
 
 def setup_dirs():
     os.makedirs(raw_data_path, exist_ok=True)
