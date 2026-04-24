@@ -11,7 +11,7 @@ st.sidebar.header("Configuration")
 env_demo = os.getenv("DEMO_MODE", "false").lower() == "true"
 demo_mode = st.sidebar.checkbox("🚀 Enable Demo Mode (Offline)", value=env_demo, help="Bypass Kafka/DuckDB and read precomputed data from Parquet files")
 
-db_path = os.getenv('DB_PATH', 'data/ecommerce.db')
+warehouse_path = os.getenv('WAREHOUSE_PATH', os.getenv('DB_PATH', 'data/warehouse.duckdb'))
 dl_path = os.getenv('DEAD_LETTER_PATH', 'data/dead_letter')
 demo_path = os.getenv('DEMO_DATA_PATH', 'data/demo')
 
@@ -23,10 +23,51 @@ def load_data(query_or_file, is_demo=False):
             return pd.DataFrame()
         return pd.read_parquet(query_or_file)
     else:
-        conn = duckdb.connect(db_path, read_only=True)
+        conn = duckdb.connect(warehouse_path, read_only=True)
         df = conn.execute(query_or_file).df()
         conn.close()
         return df
+
+
+def normalize_user_insights(df):
+    if df.empty:
+        return df
+    if 'user_segment' not in df.columns:
+        df['user_segment'] = df['total_orders'].apply(lambda x: 'Repeat' if x > 1 else 'New')
+    if 'name' not in df.columns:
+        df['name'] = df.get('user_id', pd.Series(index=df.index)).apply(lambda x: f"User {x}")
+    return df
+
+
+def normalize_product_analytics(df):
+    if df.empty:
+        return df
+    if 'product_name' not in df.columns and 'name' in df.columns:
+        df['product_name'] = df['name']
+    if 'revenue' not in df.columns:
+        if {'purchases', 'price'}.issubset(df.columns):
+            df['revenue'] = df['purchases'] * df['price']
+        else:
+            df['revenue'] = 0
+    return df
+
+
+def normalize_funnel(df):
+    if df.empty:
+        return df
+    if 'event_type' not in df.columns and 'funnel_step' in df.columns:
+        order = ['page_view', 'product_click', 'add_to_cart', 'checkout_start', 'purchase_complete']
+        step_map = {i + 1: name for i, name in enumerate(order)}
+        df['event_type'] = df['funnel_step'].map(step_map)
+    if 'total_events' not in df.columns and 'unique_sessions' in df.columns:
+        df['total_events'] = df['unique_sessions']
+    if 'overall_conversion_rate' not in df.columns and 'total_events' in df.columns and len(df) > 0:
+        first = df['total_events'].iloc[0]
+        last = df['total_events'].iloc[-1]
+        df['overall_conversion_rate'] = (last / first * 100) if first else None
+    if 'page' not in df.columns:
+        df['page'] = 'all'
+    return df
 
 st.sidebar.header("Navigation")
 page = st.sidebar.radio("Go to", ["Business Insights", "Executive Summary", "Product Analytics", "User Funnel", "Data Observability"])
@@ -46,7 +87,7 @@ if page == "Business Insights":
     st.subheader("New vs. Repeat Customers")
     try:
         source = os.path.join(demo_path, 'mart_user_insights.parquet') if demo_mode else "SELECT * FROM mart_user_insights"
-        users_df = load_data(source, demo_mode)
+        users_df = normalize_user_insights(load_data(source, demo_mode))
         
         if not users_df.empty:
             agg_df = users_df.groupby('user_segment')['lifetime_value'].sum().reset_index()
@@ -67,6 +108,8 @@ elif page == "Executive Summary":
     try:
         source = os.path.join(demo_path, 'mart_sales_dashboard.parquet') if demo_mode else "SELECT * FROM mart_sales_dashboard"
         df = load_data(source, demo_mode)
+        if not df.empty and 'average_order_value' not in df.columns and {'total_revenue', 'total_orders'}.issubset(df.columns):
+            df['average_order_value'] = df['total_revenue'] / df['total_orders'].replace(0, pd.NA)
         
         if not df.empty:
             col1, col2, col3 = st.columns(3)
@@ -92,6 +135,7 @@ elif page == "Product Analytics":
             GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 10
         """
         df = load_data(source, demo_mode)
+        df = normalize_product_analytics(df)
         if not df.empty:
             col1, col2 = st.columns(2)
             with col1:
@@ -114,6 +158,7 @@ elif page == "User Funnel":
     try:
         source = os.path.join(demo_path, 'mart_conversion_funnel.parquet') if demo_mode else "SELECT * FROM mart_conversion_funnel"
         df = load_data(source, demo_mode)
+        df = normalize_funnel(df)
         
         if not df.empty:
             col1, col2 = st.columns(2)

@@ -9,6 +9,11 @@ All data is synthetically generated — no external datasets used.
 3. Copy `.env.example` to `.env` and fill in values
 4. Run `python generators/generate_orders.py` to seed the database
 
+## Airflow warning notes
+- If you run **Airflow standalone with SQLite**, scheduler parallelism is intentionally constrained to 1 thread. This warning is expected with SQLite.
+- For scalable parallel scheduling, use **Postgres** with `docker-compose.yml` (`LocalExecutor` + Postgres).
+- `requirements.txt` pins `pendulum==2.1.2` to avoid deprecation warnings seen in some local Airflow setups.
+
 ## Stack
 Faker · SQLite · FastAPI · Kafka · DuckDB · dbt · Airflow · Great Expectations · Streamlit
 
