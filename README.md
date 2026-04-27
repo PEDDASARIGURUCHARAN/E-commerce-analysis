@@ -4,27 +4,3 @@ E-commerce analysis
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
