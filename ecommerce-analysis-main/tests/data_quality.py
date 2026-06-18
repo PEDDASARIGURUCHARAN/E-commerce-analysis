@@ -5,7 +5,7 @@ import sys
 from dotenv import load_dotenv
 
 load_dotenv()
-DB_PATH = os.getenv('DB_PATH', 'data/ecommerce.db')
+DB_PATH = os.getenv('WAREHOUSE_PATH', os.getenv('DB_PATH', 'data/warehouse.duckdb'))
 
 def colored_print(text, success):
     if success:
